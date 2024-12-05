@@ -1,0 +1,108 @@
+{
+	"kind" : "toolchains",
+	"toolchains" : 
+	[
+		{
+			"compiler" : 
+			{
+				"id" : "GNU",
+				"implicit" : {},
+				"path" : "C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/bin/arm-none-eabi-gcc.exe",
+				"version" : ""
+			},
+			"language" : "ASM",
+			"sourceFileExtensions" : 
+			[
+				"s",
+				"S",
+				"asm"
+			]
+		},
+		{
+			"compiler" : 
+			{
+				"id" : "GNU",
+				"implicit" : 
+				{
+					"includeDirectories" : 
+					[
+						"C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/lib/gcc/arm-none-eabi/10.3.1/include",
+						"C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/lib/gcc/arm-none-eabi/10.3.1/include-fixed",
+						"C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/arm-none-eabi/include"
+					],
+					"linkDirectories" : 
+					[
+						"C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp",
+						"C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/arm-none-eabi/lib/thumb/v6-m/nofp",
+						"C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/lib/gcc/arm-none-eabi/10.3.1",
+						"C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/lib/gcc",
+						"C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/arm-none-eabi/lib"
+					],
+					"linkFrameworkDirectories" : [],
+					"linkLibraries" : []
+				},
+				"path" : "C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/bin/arm-none-eabi-gcc.exe",
+				"version" : "10.3.1"
+			},
+			"language" : "C",
+			"sourceFileExtensions" : 
+			[
+				"c",
+				"m"
+			]
+		},
+		{
+			"compiler" : 
+			{
+				"id" : "GNU",
+				"implicit" : 
+				{
+					"includeDirectories" : 
+					[
+						"C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/arm-none-eabi/include/c++/10.3.1",
+						"C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/arm-none-eabi/include/c++/10.3.1/arm-none-eabi/thumb/v6-m/nofp",
+						"C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/arm-none-eabi/include/c++/10.3.1/backward",
+						"C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/lib/gcc/arm-none-eabi/10.3.1/include",
+						"C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/lib/gcc/arm-none-eabi/10.3.1/include-fixed",
+						"C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/arm-none-eabi/include"
+					],
+					"linkDirectories" : 
+					[
+						"C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp",
+						"C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/arm-none-eabi/lib/thumb/v6-m/nofp",
+						"C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/lib/gcc/arm-none-eabi/10.3.1",
+						"C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/lib/gcc",
+						"C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/arm-none-eabi/lib"
+					],
+					"linkFrameworkDirectories" : [],
+					"linkLibraries" : []
+				},
+				"path" : "C:/bin/Pico_SDK_v1.5.0/gcc-arm-none-eabi/bin/arm-none-eabi-g++.exe",
+				"version" : "10.3.1"
+			},
+			"language" : "CXX",
+			"sourceFileExtensions" : 
+			[
+				"C",
+				"M",
+				"c++",
+				"cc",
+				"cpp",
+				"cxx",
+				"mm",
+				"mpp",
+				"CPP",
+				"ixx",
+				"cppm",
+				"ccm",
+				"cxxm",
+				"c++m"
+			]
+		}
+	],
+	"version" : 
+	{
+		"major" : 1,
+		"minor" : 0
+	}
+}
