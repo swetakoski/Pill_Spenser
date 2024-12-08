@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
+#include <ctype.h>
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 #include "hardware/uart.h"
@@ -20,16 +22,17 @@
 // Timing Constants
 #define DEBOUNCE_DELAY_US 200000 // Debounce delay for button presses
 #define ERROR_BLINKS 5       // Number of LED blinks for errors
-#define ERROR_BLINK_DELAY 200 // LED blink duration for errors
+#define LED_BLINK_DELAY 200 // LED sleep duration for blinks
+#define BUTTON_SLEEP 25
 
-/*
 // uart
 #define UART uart1
 #define BAUD_RATE 9600
 #define UART_TX_PIN 4
 #define UART_RX_PIN 5
 #define STRLEN 100
-*/
+
+char response[STRLEN];
 
 // Stepper Motor Control Sequence
 const int half_step_sequence[8][4] = {
@@ -50,6 +53,8 @@ typedef enum {
     STATE_WAIT,
     STATE_CALIBRATION,
     STATE_DISPENSE_PILLS,
+    STATE_CHECK_LORA_CONNECTION,
+    STATE_CONNECT_LORA_TO_NETWORK,
 } dispenser_state;
 
 dispenser_state current_state = STATE_WAIT;
@@ -61,24 +66,23 @@ bool system_calibrated = false;
 // Function Prototypes
 void initialize_gpio(void);
 void switch_state(void);
+void blink_led(void);
+void led_controller(void);
 void idle_mode(void);
-void calibrating(void);
 void calibrate_motor(void);
 void activate_motor_step(uint sleep);
 void run_motor(int N);
 void dispensing_pills(void);
-void error_blinks(void);
 void piezo_interrupt(uint gpio, uint32_t events);
-/*
-void init_uart(void)
-void send_command(const uint8_t *command)
-bool receive_answer(void)
-void send_at(void)
-*/
+void init_uart(void);
+void send_command(const uint8_t *command);
+bool receive_answer(void);
+void send_at(void);
 
 int main() {
     stdio_init_all();
     initialize_gpio();
+    init_uart();
 
     while (1) {
         switch_state();
@@ -122,70 +126,97 @@ void initialize_gpio(void) {
 void switch_state(void) {
     switch (current_state) {
         case STATE_WAIT:
-            printf("Entering idle mode. Press SW_2 to calibrate.\n");
             idle_mode();
             break;
         case STATE_CALIBRATION:
-            calibrating();
+            calibrate_motor();
             break;
         case STATE_DISPENSE_PILLS:
-            if (!gpio_get(SW_0)) {
-                printf("Dispense button pressed. Dispensing pills...\n");
-                dispensing_pills();
-            }
+            dispensing_pills();
             break;
+        case STATE_CHECK_LORA_CONNECTION:
+            send_at();
+            break;
+        case STATE_CONNECT_LORA_TO_NETWORK:
+            //
+            break;
+    }
+}
+
+// led blinks
+void blink_led(void) {
+    gpio_put(LED_1, true);
+    sleep_ms(LED_BLINK_DELAY);
+    gpio_put(LED_1, false);
+    sleep_ms(LED_BLINK_DELAY);
+}
+
+// led controller
+void led_controller(void) {
+    while(gpio_get(SW_2) && gpio_get(SW_0)) {
+        if(system_calibrated == false) {
+            blink_led();
+        }else if(system_calibrated == true) {
+            gpio_put(LED_1, true);
+        }
     }
 }
 
 // Idle Mode
 void idle_mode(void) {
-    while(gpio_get(SW_2)) {
-        gpio_put(LED_1, true);
-        sleep_ms(200);
-        gpio_put(LED_1, false);
-        sleep_ms(200);
+    printf("Entering idle mode. ");
+    if(system_calibrated == false) {
+        printf("Press SW_2 to calibrate.\n");
+    }else {
+        printf("Press SW_0 to start pill dispenser or SW_2 to recalibrate.\n");
     }
+    led_controller();
     if(!gpio_get(SW_2)) {
-        sleep_ms(50);
+        sleep_ms(BUTTON_SLEEP);
         current_state = STATE_CALIBRATION;
     }
-}
-
-// Calibrating
-void calibrating(void) {
-    gpio_put(LED_1, true);
-    calibrate_motor();
-    gpio_put(LED_1, false);
+    if(!gpio_get(SW_0) && system_calibrated == true) {
+        sleep_ms(BUTTON_SLEEP);
+        gpio_put(LED_1, false);
+        current_state = STATE_DISPENSE_PILLS;
+    }else if(!gpio_get(SW_0) && system_calibrated == false) {
+        sleep_ms(BUTTON_SLEEP);
+        printf("The motor has not been calibrated.\n");
+        while(!gpio_get(SW_0)) {
+            sleep_ms(BUTTON_SLEEP);
+        }
+    }
 }
 
 // Calibrate Motor
 void calibrate_motor(void) {
+    gpio_put(LED_1, true);
     printf("Calibrating motor...\n");
     int total_steps = 0;
-    uint hit_counter = 0;
+    uint fork_hits = 0;
     bool previous_state = false;
     // find the first falling edge
     while (gpio_get(OPTO_FORK)) {
         activate_motor_step(6);
     }
     // run full 3 rounds and count steps
-    while(hit_counter < 3) {
-        activate_motor_step(4 - hit_counter);
+    while(fork_hits < 3) {
+        activate_motor_step(4 - fork_hits);
         total_steps++;
         if(!gpio_get(OPTO_FORK) && previous_state) {
-            hit_counter++;
+            fork_hits++;
         }
         previous_state = gpio_get(OPTO_FORK);
     }
     steps_per_revolution = total_steps / 3;
     // move motor a bit so dispenser wheel and dispenser base holes line up, value might depend on device
     for (int i = 0; i < 170; i++) {
-        activate_motor_step(2);
+        activate_motor_step(1);
     }
-    printf("Motor has been calibrated. Press SW_0 to start dispensing pills.\n");
+    printf("Motor has been calibrated.\n");
     //printf("%d\n", steps_per_revolution);
     system_calibrated = true;
-    current_state = STATE_DISPENSE_PILLS;
+    current_state = STATE_WAIT;
 }
 
 // Activate Motor Step
@@ -202,12 +233,14 @@ void activate_motor_step(uint sleep) {
 // Run Motor
 void run_motor(int N) {
     for (int i = 0; i < N; i++) {
-        activate_motor_step(2);
+        activate_motor_step(1);
     }
 }
 
 // Dispensing Pills
 void dispensing_pills(void) {
+    printf("Dispense button pressed. Dispensing pills...\n");
+    int sensor_triggers = 0;
     int step_and_stop = 0;
     int steps_per_compartment = steps_per_revolution / 8; // Calculate steps per compartment
     while(step_and_stop < 7){
@@ -221,26 +254,26 @@ void dispensing_pills(void) {
         if(sensor_triggered){
             printf("Pill was released from the compartment:  #%d.\n", step_and_stop+1);
             sensor_triggered = false;
+            sensor_triggers++;
         }
         else{
-            printf("Pill has not been dispensed from the compartment:  #%d.\n", step_and_stop+1);
-            error_blinks();
+            printf("Pill wasn't dispensed from the compartment:  #%d.\n", step_and_stop+1);
+            for (int blink = 0; blink < 5; blink++) {
+                blink_led();
+            }
         }
         sleep_ms(300);
         //sleep_ms(30000);
         step_and_stop++;
     }
-    current_state = STATE_WAIT;
-}
-
-// Handle Error
-void error_blinks(void) {
-    for (int blink = 0; blink < 5; blink++) {
-        gpio_put(LED_1, true);
-        sleep_ms(200);
-        gpio_put(LED_1, false);
-        sleep_ms(200);
+    if(sensor_triggers == 7) {
+        printf("All pills have been dispensed, going back to idle state.\n");
+    }else if (sensor_triggers > 0 && sensor_triggers < 7) {
+        printf("%d pill(s) have been dispensed, going back to idle state.\n", sensor_triggers);
+    }else {
+        printf("No pills have been dispensed, going back to idle state.\n");
     }
+    current_state = STATE_WAIT;
 }
 
 // Interrupt Callback for Piezo Sensor
@@ -250,13 +283,13 @@ void piezo_interrupt(uint gpio, uint32_t events) {
     }
 }
 
-
-
-
-/*
 // NOTE: need to wait for response for every command; necessary wait time depends on the command -> change
 // uart_is_readable_within_us time depending on command?
 // most of this is straight from my lab4; some things need to be changed
+// TODO:
+// take time as argument into receive_answer
+// make it so response[] doesn't need to be a global variable
+// add the other commands
 
 // initialize uart function
 void init_uart(void) {
@@ -278,14 +311,10 @@ bool receive_answer(void) {
     // empty the response string
     memset(response, 0, STRLEN);
 
-    // attempt reading uart within 500 ms
     while(uart_is_readable_within_us(UART, 500000)) {
-        // read one character
         char c = uart_getc(UART);
-        // if character is carriage return or newline, stop the string
         if (c == '\r' || c == '\n') {
             response[i] = '\0';
-            // else keep adding the character to response string as long as it's not overflowing
         } else {
             if(i < STRLEN - 1) {
                 response[i++] = c;
@@ -298,33 +327,36 @@ bool receive_answer(void) {
 
 // function to send AT
 void send_at(void) {
+    //bool at_okay = false;
     printf("Checking connection to LoRa module...\n");
     const uint8_t send[] = "AT\r\n";
-
     int attempts = 0;
 
-    // try to send AT max 5 times
     while(attempts < 5) {
         send_command(send);
         receive_answer();
-        // if there's the right answer stop the loop and move to state 3
         if(strcmp(response, "+AT: OK") == 0) {
-            printf("Connected to LoRa module\n");
-            at_okay = true;
-            state = 3;
+            printf("Connected to LoRa module.\n\n");
+            //at_okay = true;
+            current_state = STATE_WAIT;
             return;
         }
         attempts++;
     }
-    printf("Module not responding\n");
+    printf("Module not responding.\n");
+    current_state = STATE_WAIT;
 }
 
+/*
+void connect_lora() {
+    "+MODE=LWOTAA\r\n"
+    "+KEY=APPKEY,"9ba1d017ed21f75853ee6e855970241c"\r\n"
+    "+CLASS=A"\r\n"
+    "+PORT=8"\r\n"
+    "+JOIN"\r\n"
+}
 
-Commands:
-"+MODE=LWOTAA\r\n"
-"+KEY=APPKEY,"[hexadecimal key for your device]"\r\n"
-"+CLASS=A"\r\n"
-"+PORT=8"\r\n"
-"+JOIN"\r\n"
-"+MSG="[message here]"\r\n"
+void send_message() {
+    "+MSG="[message here]"\r\n"
+}
 */
