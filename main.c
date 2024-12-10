@@ -82,7 +82,7 @@ void send_at(void);
 int main() {
     stdio_init_all();
     initialize_gpio();
-    init_uart();
+    //init_uart();
 
     while (1) {
         switch_state();
@@ -134,12 +134,14 @@ void switch_state(void) {
         case STATE_DISPENSE_PILLS:
             dispensing_pills();
             break;
+        /*
         case STATE_CHECK_LORA_CONNECTION:
             send_at();
             break;
         case STATE_CONNECT_LORA_TO_NETWORK:
             //connect_lora_to_network();
             break;
+            */
     }
 }
 
@@ -233,7 +235,7 @@ void activate_motor_step(uint sleep) {
 // Run Motor
 void run_motor(int N) {
     for (int i = 0; i < N; i++) {
-        activate_motor_step(1);
+        activate_motor_step(2);
     }
 }
 
@@ -247,7 +249,7 @@ void dispensing_pills(void) {
         sensor_triggered = false;
         // Rotate motor to the next compartment
         run_motor(steps_per_compartment);
-        absolute_time_t time = make_timeout_time_ms(10);
+        absolute_time_t time = make_timeout_time_ms(85);
         while(!sensor_triggered && !time_reached(time)){
             tight_loop_contents();
         }
@@ -284,6 +286,7 @@ void piezo_interrupt(uint gpio, uint32_t events) {
 }
 
 
+
 // LORAWAN
 // most of this is straight from my lab4; some things need to be changed
 // TODO:
@@ -308,7 +311,8 @@ loracommand commands[COMMANDS_LIST_SIZE] = {
     {"AT+PORT=8\r\n", 1000},
     {"AT+JOIN\r\n", 1000}
 };
-*/
+
+
 
 // initialize uart function
 void init_uart(void) {
@@ -347,11 +351,11 @@ bool receive_answer(const uint wait_time) {
 // function to send AT
 void send_at(void) {
     printf("Checking connection to LoRa module...\n");
-    //const uint8_t send[] = "AT\r\n";
+    const uint8_t send[] = "AT\r\n";
     int attempts = 0;
 
     while(attempts < 5) {
-        send_command("AT\r\n");
+        send_command(send);
         receive_answer(5000);
         if(strcmp(response, "+AT: OK") == 0) {
             printf("Connected to LoRa module.\n\n");
@@ -363,6 +367,7 @@ void send_at(void) {
     printf("Module not responding.\n");
     current_state = STATE_WAIT;
 }
+
 
 /*
 void connect_lora_to_network() {
