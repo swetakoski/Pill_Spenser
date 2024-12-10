@@ -283,13 +283,35 @@ void piezo_interrupt(uint gpio, uint32_t events) {
     }
 }
 
-// NOTE: need to wait for response for every command; necessary wait time depends on the command -> change
-// uart_is_readable_within_us time depending on command?
+
+
+
+// LORAWAN
 // most of this is straight from my lab4; some things need to be changed
 // TODO:
-// take time as argument into receive_answer
 // make it so response[] doesn't need to be a global variable
 // add the other commands
+// somehow possibly make it so you can send "AT+command" and then just replace +command with whatever
+// command you want to send except when you just send AT?
+
+/*
+#define COMMANDS_LIST_SIZE 5
+
+typedef struct {
+    const uint8_t *command;
+    const uint wait_time;
+} loracommand;
+
+// times are currently placeholders
+loracommand commands[COMMANDS_LIST_SIZE] = {
+    {"AT+MODE=LWOTAA\r\n", 1000},
+    {"AT+KEY=APPKEY,'9ba1d017ed21f75853ee6e855970241c'\r\n", 1000},
+    {"AT+CLASS=A\r\n", 1000},
+    {"AT+PORT=8\r\n", 1000},
+    {"AT+JOIN\r\n", 1000}
+};
+
+*/
 
 // initialize uart function
 void init_uart(void) {
@@ -304,14 +326,14 @@ void send_command(const uint8_t *command) {
 }
 
 // function to get and handle answer from lora
-bool receive_answer(void) {
+bool receive_answer(const uint wait_time) {
     bool answer_received = false;
     int i = 0;
 
     // empty the response string
     memset(response, 0, STRLEN);
 
-    while(uart_is_readable_within_us(UART, 500000)) {
+    while(uart_is_readable_within_us(UART, wait_time)) {
         char c = uart_getc(UART);
         if (c == '\r' || c == '\n') {
             response[i] = '\0';
@@ -329,12 +351,12 @@ bool receive_answer(void) {
 void send_at(void) {
     //bool at_okay = false;
     printf("Checking connection to LoRa module...\n");
-    const uint8_t send[] = "AT\r\n";
+    //const uint8_t send[] = "AT\r\n";
     int attempts = 0;
 
     while(attempts < 5) {
-        send_command(send);
-        receive_answer();
+        send_command("AT\r\n");
+        receive_answer(50000);
         if(strcmp(response, "+AT: OK") == 0) {
             printf("Connected to LoRa module.\n\n");
             //at_okay = true;
@@ -349,11 +371,12 @@ void send_at(void) {
 
 /*
 void connect_lora() {
-    "+MODE=LWOTAA\r\n"
-    "+KEY=APPKEY,"9ba1d017ed21f75853ee6e855970241c"\r\n"
-    "+CLASS=A"\r\n"
-    "+PORT=8"\r\n"
-    "+JOIN"\r\n"
+    for(int i = 0, i < COMMANDS_LIST_SIZE, i++){
+        send_command(commands[i].command);
+        receive_answer(commands[i].wait_time);
+    }
+    // some kind of check if join succeeded or not and retry
+    current_state = STATE_WAIT;
 }
 
 void send_message() {
