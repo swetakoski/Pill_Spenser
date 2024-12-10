@@ -76,7 +76,7 @@ void dispensing_pills(void);
 void piezo_interrupt(uint gpio, uint32_t events);
 void init_uart(void);
 void send_command(const uint8_t *command);
-bool receive_answer(void);
+bool receive_answer(uint wait_time);
 void send_at(void);
 
 int main() {
@@ -138,7 +138,7 @@ void switch_state(void) {
             send_at();
             break;
         case STATE_CONNECT_LORA_TO_NETWORK:
-            //
+            //connect_lora_to_network();
             break;
     }
 }
@@ -284,8 +284,6 @@ void piezo_interrupt(uint gpio, uint32_t events) {
 }
 
 
-
-
 // LORAWAN
 // most of this is straight from my lab4; some things need to be changed
 // TODO:
@@ -310,7 +308,6 @@ loracommand commands[COMMANDS_LIST_SIZE] = {
     {"AT+PORT=8\r\n", 1000},
     {"AT+JOIN\r\n", 1000}
 };
-
 */
 
 // initialize uart function
@@ -349,18 +346,16 @@ bool receive_answer(const uint wait_time) {
 
 // function to send AT
 void send_at(void) {
-    //bool at_okay = false;
     printf("Checking connection to LoRa module...\n");
     //const uint8_t send[] = "AT\r\n";
     int attempts = 0;
 
     while(attempts < 5) {
         send_command("AT\r\n");
-        receive_answer(50000);
+        receive_answer(5000);
         if(strcmp(response, "+AT: OK") == 0) {
             printf("Connected to LoRa module.\n\n");
-            //at_okay = true;
-            current_state = STATE_WAIT;
+            current_state = STATE_CONNECT_LORA_TO_NETWORK;
             return;
         }
         attempts++;
@@ -370,7 +365,7 @@ void send_at(void) {
 }
 
 /*
-void connect_lora() {
+void connect_lora_to_network() {
     for(int i = 0, i < COMMANDS_LIST_SIZE, i++){
         send_command(commands[i].command);
         receive_answer(commands[i].wait_time);
