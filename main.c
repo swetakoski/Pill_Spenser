@@ -249,7 +249,7 @@ void dispensing_pills(void) {
         sensor_triggered = false;
         // Rotate motor to the next compartment
         run_motor(steps_per_compartment);
-        absolute_time_t time = make_timeout_time_ms(85);
+        absolute_time_t time = make_timeout_time_ms(100);
         while(!sensor_triggered && !time_reached(time)){
             tight_loop_contents();
         }
