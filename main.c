@@ -57,7 +57,7 @@ typedef enum {
     STATE_CONNECT_LORA_TO_NETWORK,
 } dispenser_state;
 
-dispenser_state current_state = STATE_WAIT;
+dispenser_state current_state = STATE_CHECK_LORA_CONNECTION;
 
 // Global Variables
 bool sensor_triggered = false;
@@ -331,9 +331,7 @@ bool receive_answer(const uint wait_time) {
     bool answer_received = false;
     int i = 0;
 
-    // empty the response string
-    memset(response, 0, STRLEN);
-
+   
     while(uart_is_readable_within_us(UART, wait_time)) {
         char c = uart_getc(UART);
         if (c == '\r' || c == '\n') {
@@ -369,17 +367,40 @@ void send_at(void) {
 }
 
 
-/*
-void connect_lora_to_network() {
-    for(int i = 0, i < COMMANDS_LIST_SIZE, i++){
-        send_command(commands[i].command);
-        receive_answer(commands[i].wait_time);
-    }
-    // some kind of check if join succeeded or not and retry
-    current_state = STATE_WAIT;
+
+  void connect_lora_to_network()() {
+    uart_puts(UART_ID, "AT+JOIN\n");
+    printf("Joining LoRa network...\n");
+
+    // Define a timeout (e.g., 30 seconds)
+    uint32_t start_time = to_ms_since_boot(get_absolute_time());
+    uint32_t timeout_ms = 30000; // 30 seconds timeout
+    bool result = false;
+
+    while (strstr(lora_response, "+JOIN: Done") == NULL) {
+        readLoRaResponse();
+
+        if (strstr(lora_response, "+JOIN: NetID") == NULL) {
+            result = true;
+        }
+
+        // Check if timeout has occurred
+        if (to_ms_since_boot(get_absolute_time()) - start_time > timeout_ms) {
+            printf("Timeout while waiting for LoRa join response.\n");
+            return false; // Timeout, failed to join
+        }
+        
 }
 
-void send_message() {
-    "+MSG="[message here]"\r\n"
+    }
+// Check if the join was successful
+    if (result) {
+        printf("Successfully joined LoRa network.\n");
+        return true;
+current_state = STATE_WAIT;
+    } else {
+        printf("Failed to join LoRa network. Response: %s\n", lora_response);
+        return false;
+    }
+
 }
-*/
